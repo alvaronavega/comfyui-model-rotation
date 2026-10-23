@@ -1,0 +1,12 @@
+name: Teste Trigger
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  teste:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ola
+        run: echo "trigger funciona"
