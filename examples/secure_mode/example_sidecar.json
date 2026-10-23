@@ -1,0 +1,15 @@
+{
+    "positive_prompt": "c7808ea765af",
+    "negative_prompt": "35f65d1fa9a9",
+    "checkpoint": "1313449c28d7",
+    "seed": "3df90422fd06",
+    "steps": "765b93876ed0",
+    "cfg": "d3e9a19dff4b",
+    "sampler_name": "6e8d64454bde",
+    "scheduler": "1dec62fbf1a0",
+    "vae": "8901dee5513a",
+    "clip": "618b463be345",
+    "loras": [
+        "4a9e72a137b4"
+    ]
+}

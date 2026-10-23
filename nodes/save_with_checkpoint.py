@@ -251,6 +251,48 @@ class SaveImageWithCheckpoint:
         from utils.secure_hash import hash_value
         return hash_value(value, length=length)
 
+    # ── Workflow sanitizing ─────────────────────────────────────────────────
+
+    #: Widget names whose value is a local path and must never be published.
+    _PATH_WIDGETS = ("custom_path", "manifest_path", "output_path", "save_path",
+                     "output_directory", "input_path", "model_path", "lora_path")
+
+    #: Regex matching an absolute Windows path (C:\...) or a UNC path (\\server\share)
+    _ABS_PATH_RE = re.compile(r"(?:[A-Za-z]:[\\/][^\s\"',;]*|\\\\[^\s\"',;]+)")
+
+    @classmethod
+    def _scrub_paths(cls, text: str) -> str:
+        """Replace every absolute path inside *text* with a neutral placeholder.
+
+        The embedded workflow graph stores the widget values of every node, so a
+        node configured with a local folder (``custom_path``,
+        ``manifest_path``, ...) would otherwise publish the layout of the
+        machine that produced the image.
+        """
+        return cls._ABS_PATH_RE.sub("<path>", text)
+
+    @classmethod
+    def _sanitize_workflow(cls, obj: Any) -> Any:
+        """Recursively scrub absolute paths and our own path widgets.
+
+        Walks the workflow graph (dict/list/str) and:
+        * replaces the value of the known path widgets with a neutral label
+        * replaces any remaining absolute path found in a string
+        """
+        if isinstance(obj, dict):
+            result = {}
+            for key, value in obj.items():
+                if key in cls._PATH_WIDGETS and isinstance(value, str) and value.strip():
+                    result[key] = f"<{key}>"
+                else:
+                    result[key] = cls._sanitize_workflow(value)
+            return result
+        if isinstance(obj, list):
+            return [cls._sanitize_workflow(item) for item in obj]
+        if isinstance(obj, str):
+            return cls._scrub_paths(obj)
+        return obj
+
     # ── Filename helpers ────────────────────────────────────────────────────
 
     @staticmethod
@@ -351,10 +393,16 @@ class SaveImageWithCheckpoint:
             # ── Workflow graph (biggest leak — toggleable) ──────────────────
             if embed_workflow:
                 if prompt is not None:
-                    metadata.add_text("prompt", json.dumps(prompt))
+                    # Sanitize before embedding: the graph holds the widget
+                    # values of every node, and some of them are local paths
+                    # (our custom_path / manifest_path, and any other node
+                    # that takes a folder). Those must not be published.
+                    metadata.add_text("prompt", json.dumps(self._sanitize_workflow(prompt)))
                 if extra_pnginfo is not None:
                     for x in extra_pnginfo:
-                        metadata.add_text(x, json.dumps(extra_pnginfo[x]))
+                        metadata.add_text(
+                            x, json.dumps(self._sanitize_workflow(extra_pnginfo[x]))
+                        )
 
             # ── Checkpoint / model info (toggleable) ────────────────────────
             if enable_metadata and checkpoint_name:

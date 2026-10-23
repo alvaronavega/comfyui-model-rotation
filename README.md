@@ -210,6 +210,40 @@ is **never** written to the sidecars.
 | Share a PNG that reveals nothing | `enable_metadata: false` + `embed_workflow: false` |
 | Keep a private audit trail | the above + `enable_txt_file: true` + `secure_mode: true` + `manifest_path` |
 
+#### Local paths never leak into the PNG
+
+The embedded workflow graph stores the **widget values of every node**, and some
+of them are local folders — our own `custom_path` / `manifest_path`, and any other
+node that takes a path. Before writing the graph into the PNG the node
+**sanitizes** it:
+
+* the value of the known path widgets is replaced by a label (`<custom_path>`)
+* any remaining absolute path (`C:\...` or `\\server\share`) becomes `<path>`
+
+So the PNG never publishes the layout of the machine that produced it. Model
+*filenames* are kept on purpose (they are relative, and they are what the
+metadata is for).
+
+#### What is private, and where it lives
+
+| File | Secret? | Where it is | In git? |
+|------|---------|-------------|---------|
+| `utils/secure_config.json` (the **salt**) | semi | inside the node, `utils/` | **no** (git-ignored) |
+| your **manifest.json** | **yes — this is the key** | wherever you point `manifest_path` | **no** (outside the repo) |
+| `utils/language_config.json` | no | inside the node, `utils/` | no (git-ignored) |
+| the sidecars | free to share | next to the images | no |
+
+The salt is generated automatically on first use and the language preference falls
+back to ptbr, so a fresh clone behaves correctly without them.
+
+**Back up the manifest** — losing it makes the sidecars permanently unreadable
+(that is the point) and losing the salt means the hashes can no longer be
+recomputed either.
+
+Public, committed examples live in [`examples/secure_mode/`](examples/secure_mode/):
+they show the obfuscated sidecar, the manifest, the salt used and how to reverse
+them. They contain fake data only.
+
 ### 3. Checkpoint to Filename
 
 Creates a filename that includes model/checkpoint information.
