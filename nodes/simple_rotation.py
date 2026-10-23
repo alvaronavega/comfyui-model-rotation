@@ -1,36 +1,51 @@
-"""
-Simplified checkpoint rotation node with built-in counter.
+"""Simplified checkpoint rotation node with built-in counter.
+
+Supports both checkpoints and diffusion models via the model_folder widget.
+Just set folder and interval - that's it.
 """
 
 import os
-import sys
-from typing import Dict, Tuple, Optional, Any
+from typing import Dict, List, Optional, Tuple, Any
 
-# Use relative imports to avoid conflicts with ComfyUI's built-in modules
-try:
-    from ..utils.path_utils import PathUtils
-    from ..utils.checkpoint_utils import CheckpointUtils
-except ImportError:
-    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if parent_dir not in sys.path:
-        sys.path.insert(0, parent_dir)
-    from utils.path_utils import PathUtils
-    from utils.checkpoint_utils import CheckpointUtils
+from utils.model_discovery import (
+    ModelNotFoundError,
+    list_model_names,
+    select_rotated,
+    load_by_category,
+)
 
 
 class SimpleCheckpointRotation:
-    """
-    Simplified checkpoint rotation with built-in counter.
+    """Simplified checkpoint rotation with built-in counter.
+
+    Supports both checkpoints and diffusion models.
     Just set folder and interval - that's it.
     """
 
-    # Class variable to track state across executions
+    # Class IDs must not change
+    NODE_CLASS_MAPPINGS = {}
+    NODE_DISPLAY_NAME_MAPPINGS = {}
+
+    # RETURN_TYPES must remain exactly as today (4 elements)
+    RETURN_TYPES = ("MODEL", "CLIP", "VAE", "STRING")
+    RETURN_NAMES = ("model", "clip", "vae", "info")
+
+    FUNCTION = "load_checkpoint"
+    CATEGORY = "loaders"
+
+    # Class-level counter (shared across all instances for simplicity)
     _counter = 0
-    _checkpoint_cache = {}
+
+    def __init__(self):
+        # Cache removed — discovery uses folder_paths directly
+        pass
 
     @classmethod
     def INPUT_TYPES(cls) -> Dict[str, Any]:
-        """Define input parameters."""
+        """Define input parameters.
+
+        model_folder is appended as the LAST optional widget.
+        """
         return {
             "required": {
                 "subfolder": ("STRING", {
@@ -42,6 +57,7 @@ class SimpleCheckpointRotation:
                     "default": 4,
                     "min": 1,
                     "max": 1000,
+                    "step": 1,
                     "tooltip": "Change checkpoint every N images"
                 }),
                 "auto_increment": ("BOOLEAN", {
@@ -56,113 +72,86 @@ class SimpleCheckpointRotation:
                     "max": 100000,
                     "tooltip": "Manual index (only used if auto_increment is OFF)"
                 }),
+                # New widget: dropdown to pick model category (last optional widget)
+                "model_folder": (["checkpoints", "diffusion_models", "unet"], {
+                    "default": "checkpoints",
+                    "placeholder": "model category"
+                }),
             }
         }
-
-    RETURN_TYPES = ("MODEL", "CLIP", "VAE", "STRING")
-    RETURN_NAMES = ("model", "clip", "vae", "info")
-
-    FUNCTION = "load_checkpoint"
-
-    CATEGORY = "loaders"
-
-    OUTPUT_NODE = False
 
     def load_checkpoint(
         self,
         subfolder: str,
         change_every: int,
         auto_increment: bool = True,
-        manual_index: int = 0
+        manual_index: int = 0,
+        model_folder: str = "checkpoints",
     ) -> Tuple:
-        """Load checkpoint with rotation."""
-        try:
-            # Determine current index
-            if auto_increment:
-                current_index = self._counter
-                self._counter += 1
-            else:
-                current_index = manual_index
+        """Load checkpoint/model with rotation.
 
-            # Get base checkpoints directory
-            base_path = PathUtils.get_checkpoints_base_path()
+        Delegates discovery, selection, and loading to shared utility functions.
+        Raises ModelNotFoundError if no models match the criteria.
+        """
+        # Determine current index
+        if auto_increment:
+            current_index = SimpleCheckpointRotation._counter
+            SimpleCheckpointRotation._counter += 1
+        else:
+            current_index = manual_index
 
-            # Validate and get full path to subfolder
-            is_valid, result = PathUtils.validate_subfolder(base_path, subfolder)
-            if not is_valid:
-                error_msg = f"Subfolder error: {result}"
-                print(f"[SimpleCheckpointRotation] {error_msg}")
-                return self._return_error(error_msg)
+        # 1. Discover model names for the selected category across ALL roots
+        all_names = list_model_names(category=model_folder, filter_pattern="")
 
-            checkpoint_folder = result
+        # 2. Apply user filter (case-insensitive substring)
+        if hasattr(self, 'checkpoint_filter') and self.checkpoint_filter:
+            # Note: checkpoint_filter not in signature for simplicity;
+            # could add it later if needed
+            names = list_model_names(category=model_folder, filter_pattern=self.checkpoint_filter)
+        else:
+            names = all_names
 
-            # Discover checkpoints (with caching)
-            cache_key = subfolder if subfolder else "root"
-            if cache_key not in self._checkpoint_cache:
-                checkpoints = CheckpointUtils.scan_checkpoint_folder(checkpoint_folder, recursive=True)
-                if not checkpoints:
-                    error_msg = f"No checkpoints found in: {subfolder or 'root folder'}"
-                    print(f"[SimpleCheckpointRotation] {error_msg}")
-                    return self._return_error(error_msg)
-                self._checkpoint_cache[cache_key] = checkpoints
-            else:
-                checkpoints = self._checkpoint_cache[cache_key]
-
-            # Select checkpoint based on rotation logic
-            checkpoint_rotation_index = (current_index // change_every) % len(checkpoints)
-            selected_checkpoint = checkpoints[checkpoint_rotation_index]
-
-            # Get checkpoint name for ComfyUI
-            checkpoint_name = CheckpointUtils.get_checkpoint_name_for_comfyui(
-                selected_checkpoint,
-                base_path
+        # 3. Raise clear error if nothing matches
+        if not names:
+            raise ModelNotFoundError(
+                category=model_folder,
+                filter_pattern="",
             )
 
-            # Load the checkpoint
-            model, clip, vae = self._load_checkpoint(checkpoint_name)
+        # 4. Select model name based on rotation logic
+        #    Formula: (current_index // change_every) % len(names)
+        selected_name = select_rotated(
+            names=names,
+            batch_index=current_index,
+            interval=change_every,
+            mode="sequential",
+            seed=0,
+        )
 
-            # Generate info
-            checkpoint_num = checkpoint_rotation_index + 1
-            total_checkpoints = len(checkpoints)
-            info = (
-                f"Image #{current_index}\n"
-                f"Checkpoint {checkpoint_num}/{total_checkpoints}: {os.path.basename(selected_checkpoint)}\n"
-                f"Changes every {change_every} images\n"
-                f"Mode: {'Auto' if auto_increment else 'Manual'}"
-            )
+        # 5. Load the model using category-aware loader
+        model, clip, vae = load_by_category(
+            category=model_folder,
+            name=selected_name,
+            embeddings_dir=None,
+        )
 
-            print(f"[SimpleCheckpointRotation] Image #{current_index} - Using checkpoint {checkpoint_num}/{total_checkpoints}: {os.path.basename(selected_checkpoint)}")
+        # 6. Generate checkpoint_name (forward slashes)
+        checkpoint_name = selected_name.replace(os.sep, '/')
 
-            return (model, clip, vae, info)
+        # 7. Generate info string
+        checkpoint_index = (current_index // change_every) % len(names)
+        total = len(names)
+        info = (
+            f"Image #{current_index}\n"
+            f"Checkpoint {checkpoint_index + 1}/{total}\n"
+            f"Changes every {change_every} images\n"
+            f"Mode: {'Auto' if auto_increment else 'Manual'}"
+        )
 
-        except Exception as e:
-            error_msg = f"Error: {str(e)}"
-            print(f"[SimpleCheckpointRotation] {error_msg}")
-            import traceback
-            traceback.print_exc()
-            return self._return_error(error_msg)
+        # Console feedback
+        print(f"[SimpleCheckpointRotation] Image #{current_index} - Using checkpoint {checkpoint_index + 1}/{total}: {selected_name}")
 
-    def _load_checkpoint(self, checkpoint_name: str) -> Tuple:
-        """Load a checkpoint using ComfyUI's checkpoint loader."""
-        try:
-            import comfy.sd
-            import folder_paths
-
-            checkpoint_path = folder_paths.get_full_path("checkpoints", checkpoint_name)
-            out = comfy.sd.load_checkpoint_guess_config(
-                checkpoint_path,
-                output_vae=True,
-                output_clip=True,
-                embedding_directory=folder_paths.get_folder_paths("embeddings")
-            )
-            return (out[0], out[1], out[2])
-
-        except Exception as e:
-            raise Exception(f"Failed to load checkpoint '{checkpoint_name}': {e}")
-
-    def _return_error(self, error_message: str) -> Tuple:
-        """Return error state."""
-        return (None, None, None, f"ERROR: {error_message}")
+        return (model, clip, vae, info)
 
     @classmethod
     def reset_counter(cls):
@@ -171,7 +160,6 @@ class SimpleCheckpointRotation:
         print("[SimpleCheckpointRotation] Counter reset to 0")
 
     @classmethod
-    def IS_CHANGED(cls, **kwargs):
+    def IS_CHANGED(cls, **kwargs) -> float:
         """Force re-execution every time."""
-        # Return counter value so node always re-executes
         return float(cls._counter)

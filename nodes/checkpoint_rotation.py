@@ -1,96 +1,120 @@
-"""
-Main checkpoint rotation node for ComfyUI.
+"""Main checkpoint rotation node for ComfyUI.
+
+Supports rotating through checkpoints OR diffusion models (UNETs without embedded CLIP).
+Uses ComfyUI's folder_paths to discover models across all registered roots
+(including ComfyUI-Shared), and raises clear errors instead of silently returning None.
+
+NODE CLASS ID: CheckpointRotation  — MUST NOT CHANGE for existing graphs.
+RETURN_TYPES: ("MODEL", "CLIP", "VAE", "STRING", "STRING")  — UNCHANGED.
 """
 
 import os
-import sys
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Optional, Tuple, Any
 
-# Use relative imports to avoid conflicts with ComfyUI's built-in modules
-try:
-    from ..utils.path_utils import PathUtils
-    from ..utils.checkpoint_utils import CheckpointUtils
-except ImportError:
-    # Fallback for direct execution
-    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if parent_dir not in sys.path:
-        sys.path.insert(0, parent_dir)
-    from utils.path_utils import PathUtils
-    from utils.checkpoint_utils import CheckpointUtils
+from utils.model_discovery import (
+    ModelNotFoundError,
+    list_model_names,
+    select_rotated,
+    load_by_category,
+)
+from utils.i18n import get, set_language, current_language, list_languages
 
 
 class CheckpointRotationNode:
-    """
-    A custom ComfyUI node that rotates through checkpoints based on batch generation count.
+    """Rotate through checkpoints or diffusion models during batch generation."""
 
-    This node allows automatic switching between different model checkpoints during
-    batch image generation, enabling diverse outputs from multiple models.
-    """
+    # Class IDs must not change — existing graphs reference them by ID
+    NODE_CLASS_MAPPINGS = {}
+    NODE_DISPLAY_NAME_MAPPINGS = {}
+
+    # RETURN_TYPES and RETURN_NAMES must remain exactly as today
+    RETURN_TYPES = ("MODEL", "CLIP", "VAE", "STRING", "STRING")
+    RETURN_NAMES = ("model", "clip", "vae", "checkpoint_name", "info")
+
+    FUNCTION = "load_checkpoint_rotated"
+    CATEGORY = "loaders"
 
     def __init__(self):
-        """Initialize the checkpoint rotation node."""
-        self.checkpoint_cache: Dict[str, List[str]] = {}
-        self.last_checkpoint_path: Optional[str] = None
+        # Per-node checkpoint cache removed — discovery uses folder_paths directly
+        pass
 
     @classmethod
     def INPUT_TYPES(cls) -> Dict[str, Any]:
-        """
-        Define input parameters for the node.
+        """Define input parameters.
 
-        Returns:
-            Dictionary defining required and optional inputs
+        model_folder is appended as the LAST optional widget to preserve
+        old graph indices. Uses i18n translations for labels.
         """
+        # Busca traduções para os labels
+        model_folder_label = get("model_folder_label", "checkpoint_rotation")
+        checkpoint_filter_label = get("checkpoint_filter_label", "checkpoint_rotation")
+        info_title = get("info_title", "checkpoint_rotation")
+
+        # Help text for the model_folder dropdown
+        model_folder_help = get("model_folder_tooltip", "checkpoint_rotation")
+
         return {
             "required": {
                 "subfolder": ("STRING", {
                     "default": "",
                     "multiline": False,
-                    "placeholder": "subfolder path (leave empty for root)"
+                    "placeholder": get("subfolder_placeholder", "checkpoint_rotation", ""),
+                    "tooltip": get("subfolder_tooltip", "checkpoint_rotation",
+                                   "Path to model subfolder relative to the category root")
                 }),
                 "change_interval": ("INT", {
-                    "default": 1,
-                    "min": 1,
-                    "max": 10000,
-                    "step": 1,
+                    "default": 1, "min": 1, "max": 10000, "step": 1,
                     "display": "number",
-                    "tooltip": "Number of images to generate before switching checkpoint"
+                    "tooltip": get("change_interval_tooltip", "checkpoint_rotation",
+                                   "Number of images before switching model")
                 }),
                 "batch_index": ("INT", {
-                    "default": 0,
-                    "min": 0,
-                    "max": 1000000,
-                    "step": 1,
+                    "default": 0, "min": 0, "max": 1000000, "step": 1,
                     "display": "number",
-                    "tooltip": "Current batch index (use BatchIndexCounter node)"
+                    "tooltip": get("batch_index_tooltip", "checkpoint_rotation",
+                                   "Current batch index (use BatchIndexCounter)")
                 }),
                 "rotation_mode": (["sequential", "random", "shuffle"], {
                     "default": "sequential",
-                    "tooltip": "How to select next checkpoint"
+                    "tooltip": get("rotation_mode_tooltip", "checkpoint_rotation",
+                                   "How to select next model")
                 }),
                 "seed": ("INT", {
                     "default": 0,
-                    "min": 0,
-                    "max": 0xffffffffffffffff,
-                    "tooltip": "Seed for random/shuffle modes"
+                    "min": 0, "max": 0xffffffffffffffff,
+                    "tooltip": get("seed_tooltip", "checkpoint_rotation",
+                                   "Seed for random/shuffle modes")
                 }),
             },
             "optional": {
                 "checkpoint_filter": ("STRING", {
                     "default": "",
                     "multiline": False,
-                    "placeholder": "filter pattern (optional)"
+                    "placeholder": get("checkpoint_filter_placeholder", "checkpoint_rotation",
+                                       "Case-insensitive substring match"),
+                    "tooltip": get("checkpoint_filter_tooltip", "checkpoint_rotation",
+                                   "Optional filter pattern (case-insensitive substring)")
+                }),
+                # New widget: dropdown to pick model category
+                "model_folder": (["checkpoints", "diffusion_models", "unet"], {
+                    "default": "checkpoints",
+                    "placeholder": model_folder_label,
+                    "tooltip": model_folder_help,
+                }),
+                # New field: explicit model selection (comma-separated names)
+                # When provided, overrides the automatic discovery and rotates only
+                # the models listed. Useful for comparing specific models side-by-side.
+                "select_models": ("STRING", {
+                    "default": "",
+                    "multiline": False,
+                    "placeholder": get("select_models_placeholder", "checkpoint_rotation",
+                                       "Nomes separados por virgula (ex: a.safetensors, b.safetensors)"),
+                    "tooltip": get("select_models_tooltip", "checkpoint_rotation",
+                                   "Selecione modelos especificos para girar entre eles. "
+                                   "Exemplo: 'krea2Softrealism_v10, krea2WRC8_3210425'")
                 }),
             }
         }
-
-    RETURN_TYPES = ("MODEL", "CLIP", "VAE", "STRING", "STRING")
-    RETURN_NAMES = ("model", "clip", "vae", "checkpoint_name", "info")
-
-    FUNCTION = "load_checkpoint_rotated"
-
-    CATEGORY = "loaders"
-
-    OUTPUT_NODE = False
 
     def load_checkpoint_rotated(
         self,
@@ -99,199 +123,106 @@ class CheckpointRotationNode:
         batch_index: int,
         rotation_mode: str,
         seed: int,
-        checkpoint_filter: str = ""
+        checkpoint_filter: str = "",
+        model_folder: str = "checkpoints",
+        select_models: str = "",
     ) -> Tuple:
-        """
-        Main execution function that loads the appropriate checkpoint based on rotation logic.
+        """Execute checkpoint/model rotation.
 
-        Args:
-            subfolder: Subfolder path relative to checkpoints directory
-            change_interval: Number of images before changing checkpoint
-            batch_index: Current position in batch generation
-            rotation_mode: How to select checkpoint (sequential/random/shuffle)
-            seed: Random seed for reproducibility
-            checkpoint_filter: Optional filter pattern for checkpoint names
+        Delegates discovery, selection, and loading to shared utility functions.
+        Raises ModelNotFoundError if no models match (produces red node card with message).
 
-        Returns:
-            Tuple of (model, clip, vae, checkpoint_name, info)
+        Priority when picking the candidate list:
+            select_models (explicit names) > checkpoint_filter (substring) > everything
         """
         try:
-            # Get base checkpoints directory
-            base_path = PathUtils.get_checkpoints_base_path()
+            # 1. Discover model names for the selected category across ALL roots
+            all_names = list_model_names(category=model_folder, filter_pattern="")
 
-            # Validate and get full path to subfolder
-            is_valid, result = PathUtils.validate_subfolder(base_path, subfolder)
-            if not is_valid:
-                error_msg = f"Error: {result}"
-                print(error_msg)
-                return self._return_error(error_msg)
+            # 2. Determine the candidate list
+            #    Priority: explicit select_models > checkpoint_filter > all discovered
+            if select_models and select_models.strip():
+                # User typed an explicit list of model names (comma separated).
+                # Keep only the ones that actually exist for this category.
+                explicit_names = [
+                    n.strip() for n in select_models.split(",") if n.strip()
+                ]
+                names = [n for n in explicit_names if n in all_names]
+                missing = [n for n in explicit_names if n not in all_names]
+                if missing:
+                    print(
+                        "[CheckpointRotation] WARNING: these names were not found in "
+                        f"'{model_folder}' and were skipped: {', '.join(missing)}"
+                    )
+                if not names:
+                    raise ModelNotFoundError(
+                        category=model_folder,
+                        filter_pattern=select_models,
+                    )
+            elif checkpoint_filter:
+                names = list_model_names(
+                    category=model_folder, filter_pattern=checkpoint_filter
+                )
+            else:
+                names = all_names
 
-            checkpoint_folder = result
+            # 3. Raise clear error if nothing matches
+            if not names:
+                raise ModelNotFoundError(
+                    category=model_folder,
+                    filter_pattern=checkpoint_filter or "",
+                )
 
-            # Discover checkpoints
-            checkpoints = self._discover_checkpoints(
-                checkpoint_folder,
-                checkpoint_filter,
-                subfolder
+            # 4. Select model name based on rotation logic
+            selected_name = select_rotated(
+                names=names,
+                batch_index=batch_index,
+                interval=change_interval,
+                mode=rotation_mode,
+                seed=seed,
             )
 
-            if not checkpoints:
-                error_msg = f"No checkpoints found in: {subfolder or 'root checkpoints folder'}"
-                if checkpoint_filter:
-                    error_msg += f" (filter: '{checkpoint_filter}')"
-                print(error_msg)
-                return self._return_error(error_msg)
-
-            # Select checkpoint based on rotation logic
-            selected_checkpoint = CheckpointUtils.select_checkpoint_by_rotation(
-                checkpoints,
-                batch_index,
-                change_interval,
-                rotation_mode,
-                seed
+            # 5. Load the model using category-aware loader
+            model, clip, vae = load_by_category(
+                category=model_folder,
+                name=selected_name,
+                embeddings_dir=None,
             )
 
-            if not selected_checkpoint:
-                error_msg = "Failed to select checkpoint"
-                print(error_msg)
-                return self._return_error(error_msg)
+            # 6. Build checkpoint_name (relative path with forward slashes)
+            #    This name is used by Image Saver Metadata and other nodes.
+            #    We already validated the name exists via list_model_names above.
+            checkpoint_name = selected_name.replace(os.sep, '/')
 
-            # Get checkpoint name for ComfyUI (relative path with forward slashes)
-            # This is used both for loading AND for output to Image Saver Metadata
-            checkpoint_name = CheckpointUtils.get_checkpoint_name_for_comfyui(
-                selected_checkpoint,
-                base_path
-            )
-
-            # Load the checkpoint
-            model, clip, vae = self._load_checkpoint(checkpoint_name)
-
-            # Generate info string
+            # 7. Generate info string
             rotation_num = batch_index // change_interval
-            checkpoint_index = rotation_num % len(checkpoints)
+            try:
+                idx = names.index(selected_name)
+            except ValueError:
+                idx = 0
+            total = len(names)
+
             info = (
-                f"Checkpoint: {os.path.basename(selected_checkpoint)}\n"
-                f"Index: {checkpoint_index + 1}/{len(checkpoints)}\n"
+                f"Model: {selected_name}\n"
+                f"Category: {model_folder}\n"
+                f"Index: {idx + 1}/{total}\n"
                 f"Batch: {batch_index}\n"
                 f"Rotation: {rotation_num}\n"
                 f"Mode: {rotation_mode}"
             )
 
-            self.last_checkpoint_path = selected_checkpoint
-            print(f"[CheckpointRotation] Loaded: {checkpoint_name}")
+            # Console feedback (preserves existing [CheckpointRotation] format)
+            print(f"[CheckpointRotation] Loaded: {checkpoint_name} (category: {model_folder})")
             print(f"[CheckpointRotation] Output checkpoint_name for metadata: '{checkpoint_name}'")
 
             return (model, clip, vae, checkpoint_name, info)
 
+        except ModelNotFoundError:
+            raise
         except Exception as e:
-            error_msg = f"Error in checkpoint rotation: {str(e)}"
-            print(error_msg)
-            import traceback
-            traceback.print_exc()
-            return self._return_error(error_msg)
+            # Re-raise as RuntimeError to show a red node card with the error message
+            raise RuntimeError(f"Error in checkpoint rotation: {e}") from None
 
-    def _discover_checkpoints(
-        self,
-        folder_path: str,
-        filter_pattern: str,
-        cache_key: str
-    ) -> List[str]:
-        """
-        Discover checkpoints in folder with caching.
-
-        Args:
-            folder_path: Path to folder to scan
-            filter_pattern: Optional filter pattern
-            cache_key: Key for caching results
-
-        Returns:
-            List of checkpoint paths
-        """
-        # Create cache key
-        full_cache_key = f"{cache_key}:{filter_pattern}"
-
-        # Check cache
-        if full_cache_key in self.checkpoint_cache:
-            return self.checkpoint_cache[full_cache_key]
-
-        # Scan for checkpoints
-        checkpoints = CheckpointUtils.scan_checkpoint_folder(folder_path, recursive=True)
-
-        # Apply filter if provided
-        if filter_pattern:
-            checkpoints = CheckpointUtils.filter_checkpoints(checkpoints, filter_pattern)
-
-        # Cache results
-        self.checkpoint_cache[full_cache_key] = checkpoints
-
-        return checkpoints
-
-    def _load_checkpoint(self, checkpoint_name: str) -> Tuple:
-        """
-        Load a checkpoint using ComfyUI's checkpoint loader.
-
-        Args:
-            checkpoint_name: Name of checkpoint to load (relative to checkpoints folder)
-
-        Returns:
-            Tuple of (model, clip, vae)
-        """
-        try:
-            # Import ComfyUI modules
-            import comfy.sd
-            import folder_paths
-
-            # Get full path to checkpoint
-            checkpoint_path = folder_paths.get_full_path("checkpoints", checkpoint_name)
-
-            # Load checkpoint
-            out = comfy.sd.load_checkpoint_guess_config(
-                checkpoint_path,
-                output_vae=True,
-                output_clip=True,
-                embedding_directory=folder_paths.get_folder_paths("embeddings")
-            )
-
-            return (out[0], out[1], out[2])
-
-        except ImportError as e:
-            # Fallback error handling when ComfyUI modules not available
-            raise ImportError(f"ComfyUI modules not available: {e}")
-        except Exception as e:
-            raise Exception(f"Failed to load checkpoint '{checkpoint_name}': {e}")
-
-    def _return_error(self, error_message: str) -> Tuple:
-        """
-        Return error state with None values.
-
-        Args:
-            error_message: Error message to include
-
-        Returns:
-            Tuple with None values and error message
-        """
-        return (None, None, None, "ERROR", error_message)
-
-    @classmethod
     def IS_CHANGED(cls, **kwargs) -> float:
-        """
-        Determine if node needs to re-execute.
-
-        This node should re-execute when batch_index changes.
-
-        Returns:
-            Value that changes when node should re-execute
-        """
-        # Return batch_index so node re-executes on each batch change
+        """Re-execute when batch_index changes — preserves existing behavior."""
         return float(kwargs.get('batch_index', 0))
-
-
-# Node registration is handled in main __init__.py
-# Keeping this for reference only
-# NODE_CLASS_MAPPINGS = {
-#     "CheckpointRotation": CheckpointRotationNode
-# }
-#
-# NODE_DISPLAY_NAME_MAPPINGS = {
-#     "CheckpointRotation": "Checkpoint Rotation Loader"
-# }
