@@ -312,6 +312,7 @@
         "",
         false,
         "C:/AI/privado/manifest.json",
+        true,
         "checkpoint",
         "batch",
         "seed"

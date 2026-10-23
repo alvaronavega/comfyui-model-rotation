@@ -588,13 +588,17 @@ comfyui-model-rotation/
 │   ├── __init__.py
 │   ├── model_discovery.py         # Model discovery & loading (new)
 │   ├── secure_hash.py             # Salted hashing + manifest (new)
+│   ├── version.py                 # Version resolved from the git history (new)
+│   ├── attribution.py             # Author credits on every node (new)
 │   ├── i18n.py                    # Multi-language support (new)
 │   ├── language_config.json       # Saved language preference (new)
 │   ├── secure_config.json         # Salt for the secure mode (new, auto-generated)
 │   ├── checkpoint_utils.py        # Checkpoint operations
 │   └── path_utils.py              # Path handling
 ├── tools/
-│   └── resolve_sidecar.py     # CLI to reverse an obfuscated sidecar (new)
+│   ├── resolve_sidecar.py     # CLI to reverse an obfuscated sidecar (new)
+│   └── release.py             # Semantic version bump + tag (new)
+├── VERSION                    # Last released version (new)
 ├── tests/                     # pytest suite (new)
 ├── examples/
 │   └── example_workflow.json    # Example workflow
@@ -696,6 +700,68 @@ Contributions are welcome! Please:
 - **Issues**: Report bugs on [GitHub Issues](https://github.com/alvaronavega/comfyui-model-rotation/issues)
 - **Discussions**: Ask questions in GitHub Discussions
 - **ComfyUI Discord**: Get help from the community
+
+## Versioning
+
+The version of the package is **derived from the git history**, so it always
+tells you exactly which code produced an image.
+
+```
+2.0.0                 exactly on the tag v2.0.0, clean tree
+2.0.0+21.gd8477fc      21 commits after v2.0.0 (commit d8477fc)
+2.0.0+21.gd8477fc.dirty  ... and the working tree has uncommitted changes
+2.1.0-rc.1+3.gabc1234  a prerelease tag
+```
+
+It is a Semantic Version with the commit information in the build metadata
+(also a valid PEP 440 local version).
+
+### Where the version comes from
+
+| Priority | Source | When it is used |
+|----------|--------|-----------------|
+| 1 | `git describe --tags --long --dirty` | a normal git checkout |
+| 2 | the committed `VERSION` file | a ZIP download (no `.git` folder) |
+| 3 | `0.0.0+unknown` | last resort |
+
+### Where the version shows up
+
+* the console banner: `Version: 2.0.0+21.gd8477fc  (tag: v2.0.0)  (commit: d8477fc)`
+* `__init__.py`: `__version__` and `__version_info__` (a dict with the parsed parts)
+* every node class: `VERSION` and `VERSION_INFO` attributes
+* **the PNG metadata**: the `node_version` and `node_version_info` fields
+* **the sidecar** (`.txt` / `.json`): the `node_version` field
+
+The last two let a validator trace every file back to the exact build that
+produced it. Turn the stamp off with `stamp_version: false` on the save node.
+
+### Releasing
+
+```bash
+python tools/release.py show      # current state
+python tools/release.py patch     # 2.0.0 -> 2.0.1
+python tools/release.py minor     # 2.0.0 -> 2.1.0
+python tools/release.py major     # 2.0.0 -> 3.0.0
+python tools/release.py set 2.5.0 # explicit version
+```
+
+The helper refuses to run with a dirty working tree, updates the `VERSION`
+file, creates the commit and the annotated tag, and prints the command to
+publish it:
+
+```
+git push origin HEAD v2.1.0
+```
+
+### The semantic policy
+
+| Bump | When |
+|------|------|
+| **MAJOR** | a node class id is removed or renamed, a `RETURN_TYPES` changes, or the widget order changes (existing graphs stop working) |
+| **MINOR** | a new node, a new widget or a new option is added |
+| **PATCH** | a bug fix, documentation, tests or an internal refactor |
+
+---
 
 ## License
 

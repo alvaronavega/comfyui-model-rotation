@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/en/).
 
 - **Author**: Alvaro Navega
 - **Based on**: comfyui-change-checkpoint-randomly by trunksn1
+- **Tag**: `v2.0.0`
 
 ### Added
 

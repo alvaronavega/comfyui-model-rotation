@@ -74,8 +74,14 @@ def _run_git(args: list, cwd: str) -> Optional[str]:
     return out or None
 
 
-def _read_version_file(path: str = VERSION_FILE) -> Optional[str]:
-    """Read the committed VERSION file."""
+def _read_version_file(path: Optional[str] = None) -> Optional[str]:
+    """Read the committed VERSION file.
+
+    The path defaults to the module level ``VERSION_FILE`` and is resolved at
+    call time (not at import time), so it can be pointed somewhere else.
+    """
+    if path is None:
+        path = VERSION_FILE
     try:
         with open(path, "r", encoding="utf-8") as fh:
             value = fh.read().strip()
