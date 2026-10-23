@@ -1,9 +1,9 @@
 name: CI
 
 on:
+  # No branch filter: the pipeline runs on every push, to every branch.
+  # (A 'branches: ["**"]' filter was tried first and did not trigger.)
   push:
-    branches:
-      - "**"
   pull_request:
     branches:
       - main
