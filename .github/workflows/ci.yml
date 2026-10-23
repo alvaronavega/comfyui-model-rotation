@@ -1,9 +1,9 @@
 name: CI
 
 on:
+  # No branch filter: the pipeline runs on every push, to every branch.
+  # (A 'branches: ["**"]' filter was tried first and did not trigger.)
   push:
-    branches:
-      - "**"
   pull_request:
     branches:
       - main
@@ -62,6 +62,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy pillow
 
       - name: The version must resolve from the git history
         run: python tools/check_version.py
