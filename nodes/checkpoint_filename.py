@@ -4,6 +4,7 @@ Helper node to create filenames with checkpoint information.
 
 from typing import Dict, Tuple, Any
 import re
+from utils.attribution import add_attribution
 
 
 class CheckpointFilename:
@@ -80,3 +81,7 @@ class CheckpointFilename:
     def IS_CHANGED(cls, checkpoint_name, **kwargs):
         """Force re-execution when checkpoint changes."""
         return checkpoint_name
+
+
+# ── Authorship ────────────────────────────────────────────────────────────
+add_attribution(CheckpointFilename)

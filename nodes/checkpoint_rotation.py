@@ -18,6 +18,7 @@ from utils.model_discovery import (
     load_by_category,
 )
 from utils.i18n import get, set_language, current_language, list_languages
+from utils.attribution import add_attribution
 
 
 class CheckpointRotationNode:
@@ -226,3 +227,7 @@ class CheckpointRotationNode:
     def IS_CHANGED(cls, **kwargs) -> float:
         """Re-execute when batch_index changes — preserves existing behavior."""
         return float(kwargs.get('batch_index', 0))
+
+
+# ── Authorship ────────────────────────────────────────────────────────────
+add_attribution(CheckpointRotationNode)

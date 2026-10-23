@@ -3,6 +3,7 @@ Batch index counter node for tracking generation progress.
 """
 
 from typing import Dict, Tuple, Any
+from utils.attribution import add_attribution
 
 
 class BatchIndexCounter:
@@ -207,3 +208,8 @@ class SimpleCounter:
 #     "BatchIndexCounter": "Batch Index Counter",
 #     "SimpleCounter": "Simple Counter"
 # }
+
+
+# ── Authorship ────────────────────────────────────────────────────────────
+add_attribution(BatchIndexCounter)
+add_attribution(SimpleCounter)

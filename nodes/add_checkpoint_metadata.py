@@ -8,6 +8,7 @@ import nodes
 from typing import Dict, Tuple, Any
 
 from utils.model_discovery import resolve_model_path_for_metadata
+from utils.attribution import add_attribution
 
 
 class AddCheckpointToMetadata:
@@ -85,3 +86,7 @@ class AddCheckpointToMetadata:
     def IS_CHANGED(cls, images, checkpoint_name, **kwargs):
         """Force re-execution when checkpoint changes."""
         return checkpoint_name
+
+
+# ── Authorship ────────────────────────────────────────────────────────────
+add_attribution(AddCheckpointToMetadata)

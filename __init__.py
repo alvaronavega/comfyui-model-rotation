@@ -1,4 +1,4 @@
-"""ComfyUI Checkpoint Rotation Node
+"""ComfyUI Model Rotation
 
 A custom node for ComfyUI that enables automatic rotation through checkpoints
 or diffusion models (UNETs without embedded CLIP) during batch generation.
@@ -7,8 +7,12 @@ Enables the Krea2 instance to use custom model rotation with diffusion-style
 models that have no embedded CLIP — users provide CLIPLoader and VAELoader
 separately in their workflow, as in the working Krea2 configuration.
 
-Author: Claude AI Assistant
+Author:  Alvaro Navega <alvaroflaviano@hotmail.com>
 Version: 2.0.0
+
+Based on the original "comfyui-change-checkpoint-randomly" project by
+trunksn1 — https://github.com/trunksn1/comfyui-change-checkpoint-randomly
+See the Credits section of the README for the full attribution.
 """
 
 import os
@@ -17,7 +21,14 @@ import traceback
 
 # Version info
 __version__ = "2.0.0"
-__author__ = "Claude AI Assistant"
+__author__ = "Alvaro Navega"
+__author_email__ = "alvaroflaviano@hotmail.com"
+__license__ = "MIT"
+
+# Attribution to the original project this fork is based on
+__original_project__ = "comfyui-change-checkpoint-randomly"
+__original_author__ = "trunksn1"
+__original_url__ = "https://github.com/trunksn1/comfyui-change-checkpoint-randomly"
 
 # Add this directory to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -100,10 +111,14 @@ try:
     print()
     print("\033[92m[ComfyUI] Checkpoint Rotation Node loaded successfully!\033[0m")
     print(f"  ⭐ Checkpoint Rotation (Batch) - Main node")
-    print(f"  ⭐ Save Image (with Checkpoint Info) - Use this to get correct metadata!")
+    print(f"  ⭐ Save Image (Metadata & Export) - Save PNG + .txt/.json sidecar with the generation data")
     print(f"  - Checkpoint to Filename - Add checkpoint to filename")
     print(f"  - Diffusion models: use with separate CLIPLoader + VAELoader (no embedded CLIP)")
     print(f"  Version: {__version__}")
+    print()
+    print(f"  \033[96mAuthor:\033[0m {__author__} <{__author_email__}>")
+    print(f"  \033[96mBased on:\033[0m {__original_project__} by {__original_author__}")
+    print(f"               {__original_url__}")
 
 except Exception as e:
     print("\033[91m[ComfyUI] ERROR: Failed to load Checkpoint Rotation Node!\033[0m")

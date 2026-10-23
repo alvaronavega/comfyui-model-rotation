@@ -13,6 +13,7 @@ from utils.model_discovery import (
     select_rotated,
     load_by_category,
 )
+from utils.attribution import add_attribution
 
 
 class CheckpointRotationWithCounter:
@@ -165,3 +166,7 @@ class CheckpointRotationWithCounter:
     def IS_CHANGED(cls, counter, **kwargs) -> float:
         """Tell ComfyUI to re-execute when counter changes."""
         return float(counter)
+
+
+# ── Authorship ────────────────────────────────────────────────────────────
+add_attribution(CheckpointRotationWithCounter)

@@ -13,6 +13,7 @@ from utils.model_discovery import (
     select_rotated,
     load_by_category,
 )
+from utils.attribution import add_attribution
 
 
 class SimpleCheckpointRotation:
@@ -163,3 +164,7 @@ class SimpleCheckpointRotation:
     def IS_CHANGED(cls, **kwargs) -> float:
         """Force re-execution every time."""
         return float(cls._counter)
+
+
+# ── Authorship ────────────────────────────────────────────────────────────
+add_attribution(SimpleCheckpointRotation)

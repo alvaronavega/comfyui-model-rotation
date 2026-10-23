@@ -34,6 +34,7 @@ from utils.secure_hash import (
     merge_manifest,
     save_manifest,
 )
+from utils.attribution import add_attribution
 
 
 # ── Fields we try to extract from the ComfyUI workflow graph ────────────────
@@ -548,3 +549,7 @@ class SaveImageWithCheckpoint:
     def IS_CHANGED(cls, images, checkpoint_name, **kwargs):
         """Force re-execution when the checkpoint name changes."""
         return checkpoint_name
+
+
+# ── Authorship ────────────────────────────────────────────────────────────
+add_attribution(SaveImageWithCheckpoint)

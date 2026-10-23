@@ -699,13 +699,57 @@ Contributions are welcome! Please:
 
 ## License
 
-MIT License - See LICENSE file for details
+MIT License — see the [LICENSE](LICENSE) file for the full text, which credits
+both the original author and the author of this fork.
 
-## Credits
+## Credits & Acknowledgements
 
-- **Author**: Claude AI Assistant (adaptation for diffusion models)
-- **Original**: Based on comfyui-change-checkpoint-randomly concept
-- **Inspiration**: Krea2 instance workflow configuration
+This project is a **fork** of the original *comfyui-change-checkpoint-randomly*
+node. The original work is credited in full, and the modifications of this fork
+are credited separately.
+
+### Original project
+
+- **Project**: [comfyui-change-checkpoint-randomly](https://github.com/trunksn1/comfyui-change-checkpoint-randomly)
+- **Author**: [trunksn1](https://github.com/trunksn1)
+- **License**: MIT
+- Everything that existed before this fork — the rotation logic, the counter
+  nodes, the metadata saver, the docs and the examples — comes from that project
+  and its author. Thank you for the original work.
+
+### This fork
+
+- **Project**: [comfyui-model-rotation](https://github.com/alvaronavega/comfyui-model-rotation)
+- **Author**: **Alvaro Navega** — <alvaroflaviano@hotmail.com>
+- **License**: MIT (same as the original)
+- The modifications of this fork are listed in the [CHANGELOG](CHANGELOG.md):
+
+  - support for **diffusion models** (UNETs without embedded CLIP) through the
+    `model_folder` dropdown
+  - **cross-root model discovery** (all registered ComfyUI folder roots, not
+    just the first one) — fixes the "No checkpoints found" failure
+  - **explicit model selection** (`select_models`) to compare only the models
+    you name
+  - **clear error messages** instead of the silent `clip=None` return
+  - a fully **configurable save node** with `.txt` / `.json` sidecars, filename
+    wildcards, alternative output folder and a **secure mode** (salted hashes
+    plus a private manifest)
+  - a **workflow sanitizer** so local paths never leak into the PNG metadata
+  - **multi-language** node texts (ptbr, en, zh)
+  - a **test suite** and the `tools/resolve_sidecar.py` helper
+
+### Inspiration
+
+- The **Krea2** instance workflow configuration, which showed how a diffusion
+  model setup has to be wired (separate `CLIPLoader` + `VAELoader`).
+
+### How the credit appears in the code
+
+* every node class exposes `AUTHOR`, `AUTHOR_EMAIL`, `ORIGINAL_PROJECT`,
+  `ORIGINAL_AUTHOR` and `ORIGINAL_URL`
+* every node docstring (the text shown as the node help) ends with the credit
+* the console banner printed at load time names both the author and the
+  original project
 
 ## Changelog
 

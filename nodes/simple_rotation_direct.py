@@ -13,6 +13,7 @@ from utils.model_discovery import (
     select_rotated,
     load_by_category,
 )
+from utils.attribution import add_attribution
 
 
 class CheckpointRotationSimple:
@@ -152,3 +153,7 @@ class CheckpointRotationSimple:
         Critical for ComfyUI to determine if node needs re-execution.
         """
         return float(checkpoint_index)
+
+
+# ── Authorship ────────────────────────────────────────────────────────────
+add_attribution(CheckpointRotationSimple)

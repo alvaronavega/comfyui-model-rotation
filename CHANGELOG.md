@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/en/).
 
+> **Attribution**
+> This project is a fork of [comfyui-change-checkpoint-randomly](https://github.com/trunksn1/comfyui-change-checkpoint-randomly)
+> by [trunksn1](https://github.com/trunksn1), distributed under the same MIT License.
+> The original author is credited as the author of the original work.
+> The fork — **comfyui-model-rotation** by **Alvaro Navega** — is credited for
+> every change listed below.
+
 ## Version 2.0.0 (2026-10-23)
+
+- **Author**: Alvaro Navega
+- **Based on**: comfyui-change-checkpoint-randomly by trunksn1
 
 ### Added
 
