@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+      - develop
+
+# Cancel a previous run of the same branch when a new commit lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: pytest · ${{ matrix.os }} · py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # The version is derived from the git history, so the full history
+          # and the tags are needed.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest numpy pillow
+
+      - name: Run the test suite
+        run: python -m pytest tests/ -v --tb=short
+
+  version:
+    name: version check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: The version must resolve from the git history
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, ".")
+          from utils.version import get_version, get_version_info
+          info = get_version_info()
+          print("version :", info["version"])
+          print("base    :", info["base_version"])
+          print("commit  :", info["commit"])
+          print("branch  :", info["branch"])
+          print("source  :", info["source"])
+          assert info["source"] == "git", "the version did not come from git"
+          assert info["commit"], "no commit hash resolved"
+          assert info["version"], "no version resolved"
+          PY
+
+      - name: The nodes must import and expose the version
+        run: |
+          python - <<'PY'
+          import sys, types
+          sys.path.insert(0, ".")
+          fp = types.ModuleType("folder_paths")
+          fp.get_full_path = lambda c, n: None
+          fp.get_folder_paths = lambda c: []
+          sys.modules["folder_paths"] = fp
+
+          from nodes.checkpoint_rotation import CheckpointRotationNode
+          from nodes.save_with_checkpoint import SaveImageWithCheckpoint
+          from utils.version import get_version
+
+          for node in (CheckpointRotationNode, SaveImageWithCheckpoint):
+              assert node.VERSION == get_version(), node.__name__
+              assert node.AUTHOR == "Alvaro Navega", node.__name__
+          print("nodes OK, version", get_version())
+          PY

@@ -115,6 +115,58 @@ def _build_info(base: str, count: int, commit: str, dirty: bool) -> str:
     return f"{base}+{'.'.join(parts)}"
 
 
+def _current_branch() -> Optional[str]:
+    """Return the current branch name, or None when detached."""
+    name = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], PACKAGE_ROOT)
+    if not name or name == "HEAD":
+        return None
+    return name
+
+
+def _next_minor(base: str) -> str:
+    """Return the next minor version of *base* (2.0.0 -> 2.1.0)."""
+    parts = _split_semver(base)
+    return f"{parts['major']}.{parts['minor'] + 1}.0"
+
+
+def _next_patch(base: str) -> str:
+    """Return the next patch version of *base* (2.0.0 -> 2.0.1)."""
+    parts = _split_semver(base)
+    return f"{parts['major']}.{parts['minor']}.{parts['patch'] + 1}"
+
+
+def _branch_version(base: str, branch: str, commits: int) -> Optional[str]:
+    """Return the version suffix implied by *branch* (gitflow aware).
+
+    * ``main`` / ``master``      -> the release version itself
+    * ``develop``                -> ``2.1.0-dev.<commits>``
+    * ``feature/<name>``         -> ``2.1.0-feature.<name>.<commits>``
+    * ``release/<version>``      -> ``<version>-rc.<commits>``
+    * ``hotfix/<name>``          -> ``2.0.1-hotfix.<name>.<commits>``
+    """
+    if branch in ("main", "master"):
+        return None  # the plain release version
+
+    if branch == "develop":
+        return f"{_next_minor(base)}-dev.{commits}"
+
+    if branch.startswith("feature/"):
+        name = branch[len("feature/"):].strip() or "feature"
+        name = re.sub(r"[^0-9A-Za-z.]+", ".", name).strip(".")
+        return f"{_next_minor(base)}-feature.{name}.{commits}"
+
+    if branch.startswith("release/"):
+        version = branch[len("release/"):].strip() or base
+        return f"{version}-rc.{commits}"
+
+    if branch.startswith("hotfix/"):
+        name = branch[len("hotfix/"):].strip() or "hotfix"
+        name = re.sub(r"[^0-9A-Za-z.]+", ".", name).strip(".")
+        return f"{_next_patch(base)}-hotfix.{name}.{commits}"
+
+    return None
+
+
 def get_version_info(force: bool = False) -> Dict[str, Any]:
     """Return the full version information.
 
@@ -142,6 +194,7 @@ def get_version_info(force: bool = False) -> Dict[str, Any]:
         "prerelease": None, "build": None,
         "commit": None, "commits": None,
         "dirty": False, "tag": None,
+        "branch": None,
         "source": "unknown",
     }
 
@@ -171,6 +224,15 @@ def get_version_info(force: bool = False) -> Dict[str, Any]:
                 "source": "git",
             })
             info.update(_split_semver(version))
+
+            # 1c) gitflow: the branch decides the prerelease label
+            branch = _current_branch()
+            info["branch"] = branch
+            branch_version = _branch_version(base, branch, count) if branch else None
+            if branch_version:
+                info["version"] = branch_version
+                info.update(_split_semver(branch_version))
+
             _cache = info
             return info
 
