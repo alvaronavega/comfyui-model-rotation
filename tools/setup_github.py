@@ -32,15 +32,21 @@ PROTECTED = ("main", "develop")
 CI_WORKFLOW = "ci.yml"
 
 
-def gh(args, dry_run=False, check=True):
-    """Run a gh command."""
+def gh(args, dry_run=False, check=True, stdin=None):
+    """Run a gh command.
+
+    *stdin* is sent as the request body (used by ``gh api --input -``).
+    """
     if dry_run:
         print(f"    [dry-run] gh {' '.join(args)}")
+        if stdin:
+            print(f"    [dry-run] body: {stdin}")
         return None
     result = subprocess.run(
         ["gh"] + args,
         capture_output=True,
         text=True,
+        input=stdin,
         check=False,
     )
     if result.returncode != 0 and check:
@@ -49,12 +55,12 @@ def gh(args, dry_run=False, check=True):
     return result
 
 
-def gh_json(args, dry_run=False):
+def gh_json(args, dry_run=False, check=True):
     """Run a gh command and parse its JSON output."""
     if dry_run:
         print(f"    [dry-run] gh {' '.join(args)}")
         return None
-    result = gh(args)
+    result = gh(args, check=check)
     try:
         return json.loads(result.stdout or "{}")
     except json.JSONDecodeError:
@@ -90,11 +96,12 @@ def set_default_branch(dry_run=False):
 
 
 def delete_old_branch(dry_run=False):
-    """Delete the leftover claude/... branch."""
+    """Delete the leftover claude/... branch (tolerates it being already gone)."""
     print("[2/3] deleting the leftover branch")
     result = gh_json(
         ["api", f"repos/{REPO_SLUG}/git/refs/heads/{OLD_BRANCH}"],
         dry_run=dry_run,
+        check=False,
     )
     if dry_run:
         return
@@ -104,11 +111,11 @@ def delete_old_branch(dry_run=False):
     gh([
         "api", "--method", "DELETE",
         f"repos/{REPO_SLUG}/git/refs/heads/{OLD_BRANCH}",
-    ], dry_run=dry_run)
+    ], dry_run=dry_run, check=False)
     print(f"    deleted {OLD_BRANCH}")
 
 
-def protection_payload(branch: str) -> str:
+def protection_payload(branch: str, reviews: int = 1) -> str:
     """Build the branch protection payload for *branch*."""
     payload = {
         "required_status_checks": {
@@ -119,7 +126,7 @@ def protection_payload(branch: str) -> str:
         "required_pull_request_reviews": {
             "dismiss_stale_reviews": True,
             "require_code_owner_reviews": False,
-            "required_approving_review_count": 1,
+            "required_approving_review_count": reviews,
         },
         "restrictions": None,
         "required_linear_history": False,
@@ -133,16 +140,21 @@ def protection_payload(branch: str) -> str:
     return json.dumps(payload)
 
 
-def protect_branches(dry_run=False):
+def protect_branches(dry_run=False, reviews=1):
     """Apply the branch protection rules."""
     print("[3/3] protecting the branches")
     for branch in PROTECTED:
         print(f"    -> {branch}")
-        gh([
+        payload = protection_payload(branch, reviews)
+        result = gh([
             "api", "--method", "PUT",
             f"repos/{REPO_SLUG}/branches/{branch}/protection",
             "--input", "-",
-        ], dry_run=dry_run)
+        ], dry_run=dry_run, stdin=payload, check=not dry_run)
+        if not dry_run and result is not None and result.returncode != 0:
+            print(f"    FAILED: {(result.stderr or '').strip()}")
+        elif not dry_run:
+            print("    protected")
 
 
 def show_status(dry_run=False):
@@ -169,6 +181,10 @@ def main() -> int:
                         help="print what would be done without doing it")
     parser.add_argument("--status", action="store_true",
                         help="only show the current state")
+    parser.add_argument("--reviews", type=int, default=1,
+                        help="approving reviews required to merge (default: 1). "
+                             "Use 0 when you are the only contributor and cannot "
+                             "approve your own pull requests.")
     args = parser.parse_args()
 
     print(f"repository: {REPO_SLUG}\n")
@@ -182,7 +198,7 @@ def main() -> int:
 
     set_default_branch(args.dry_run)
     delete_old_branch(args.dry_run)
-    protect_branches(args.dry_run)
+    protect_branches(args.dry_run, reviews=args.reviews)
 
     print()
     show_status(args.dry_run)
