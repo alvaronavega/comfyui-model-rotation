@@ -44,6 +44,8 @@ NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 WEB_DIRECTORY = "./web"
 
+# ── Search helper text: type "rotation" or "model" or "checkpoint" ──────────
+# Emojis prefix every node so the search box finds them instantly.
 try:
     # Import node classes using relative imports to avoid conflict with ComfyUI's 'nodes' module
     from .nodes.checkpoint_rotation import CheckpointRotationNode
@@ -66,16 +68,16 @@ try:
         "SimpleCounter": SimpleCounter,
     }
 
-    # Display names for nodes in ComfyUI interface
+    # Display names for nodes in ComfyUI interface (emojis make them searchable)
     NODE_DISPLAY_NAME_MAPPINGS = {
-        "CheckpointRotationWithCounter": "Checkpoint Rotation (Batch)",  # ⭐ USE THIS
-        "SaveImageWithCheckpoint": "Save Image (Metadata & Export)",  # ⭐ USE THIS
-        "CheckpointFilename": "Checkpoint to Filename",
-        "CheckpointRotationSimple": "Checkpoint Rotation (Debug)",
-        "SimpleCheckpointRotation": "Simple Checkpoint Rotation",
-        "CheckpointRotation": "Checkpoint Rotation Loader (Advanced)",
-        "BatchIndexCounter": "Batch Index Counter",
-        "SimpleCounter": "Simple Counter",
+        "CheckpointRotationWithCounter": "🔄✨ Checkpoint Rotation (Batch)",  # ⭐ USE THIS
+        "SaveImageWithCheckpoint": "📁 Save Image (Metadata & Export)",  # ⭐ USE FOR PROPER METADATA
+        "CheckpointFilename": "✏️ Checkpoint to Filename",
+        "CheckpointRotationSimple": "🐞 Checkpoint Rotation (Debug)",
+        "SimpleCheckpointRotation": "🔀 Simple Checkpoint Rotation",
+        "CheckpointRotation": "⚡ Checkpoint Rotation Loader (Advanced)",
+        "BatchIndexCounter": "#️⃣ Batch Index Counter",
+        "SimpleCounter": "🔢 Simple Counter",
     }
 
     # ── ASCII ART BANNER ─────────────────────────────────────────────────────
@@ -84,7 +86,7 @@ try:
 ║ ██████╗ ██████╗  ██████╗ ██████╗  ██████╗ ██████╗  ██████╗ ███████╗ ║
 ║ ██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝ ║
 ║ ██████╔╝██████╔╝██████╔╝██████╔╝██████╔╝██████╔╝██████╔╝█████╗   ║
-║ ██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝ ██╔══╝   ║
+║ ██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝ ██╔══╝   ║
 ║ ██████╔╝██║  ██║██║  ██║██║  ██║██║  ██║██║  ██║██║  ███╗███████╗ ║
 ║ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚══════╝ ║
 ║   ComfyUI Model Rotation Node v2.0.0                            ║
@@ -100,7 +102,7 @@ try:
         "   Habilitando suporte a diffusion models (sem CLIP embutido)...",
         "   Configurando salvamento de metadado cross-categorical...",
         "   Carregando nós de suporte: Batch Index Counter, Simple Counter...",
-        "   Pronto! Use o nó Checkpoint Rotation (Batch) para iniciar a rotação.",
+        "   Pronto! Use o nó 🔄 Checkpoint Rotation (Batch) para iniciar a rotação.",
     ]
 
     # Print banner
@@ -114,9 +116,9 @@ try:
     # Print success message
     print()
     print("\033[92m[ComfyUI] Checkpoint Rotation Node loaded successfully!\033[0m")
-    print(f"  ⭐ Checkpoint Rotation (Batch) - Main node")
-    print(f"  ⭐ Save Image (Metadata & Export) - Save PNG + .txt/.json sidecar with the generation data")
-    print(f"  - Checkpoint to Filename - Add checkpoint to filename")
+    print(f"  ⭐ 🔄✨ Checkpoint Rotation (Batch) - Main node")
+    print(f"  ⭐ 📁 Save Image (Metadata & Export) - Save PNG + .txt/.json sidecar with the generation data")
+    print(f"  ✏️ Checkpoint to Filename - Add checkpoint to filename")
     print(f"  - Diffusion models: use with separate CLIPLoader + VAELoader (no embedded CLIP)")
     print(f"  {format_version_line()}")
     print()
