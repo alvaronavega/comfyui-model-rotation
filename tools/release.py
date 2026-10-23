@@ -174,7 +174,18 @@ def cmd_release(args) -> int:
     print()
 
     write_version(new_version)
-    run_git(["add", VERSION_FILE])
+    run_git(["add", "--", os.path.basename(VERSION_FILE)])
+
+    # Make sure the file really got staged: a .gitignore entry would
+    # otherwise make the release produce a tag without the version file.
+    staged = git_output(["diff", "--cached", "--name-only"])
+    if os.path.basename(VERSION_FILE) not in staged.splitlines():
+        print(f"refusing to release: '{os.path.basename(VERSION_FILE)}' was not staged.")
+        print("it is probably listed in .gitignore — the version file must be committed")
+        print(f"(restore it with: git add -f {os.path.basename(VERSION_FILE)})")
+        write_version(current)  # put the old value back
+        return 1
+
     run_git(["commit", "-m", f"release: v{new_version}"])
     run_git(["tag", "-a", tag, "-m", f"Release {new_version}"])
 
