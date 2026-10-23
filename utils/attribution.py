@@ -42,6 +42,15 @@ def add_attribution(node_class) -> None:
     node_class.ORIGINAL_AUTHOR = ORIGINAL_AUTHOR
     node_class.ORIGINAL_URL = ORIGINAL_URL
 
+    # Version, resolved from the git history
+    try:
+        from utils.version import get_version, get_version_info
+        node_class.VERSION = get_version()
+        node_class.VERSION_INFO = get_version_info()
+    except Exception:  # noqa: BLE001 - never break a node because of this
+        node_class.VERSION = "unknown"
+        node_class.VERSION_INFO = {}
+
     # Append the credit to the docstring so it shows up in the node help.
     doc = node_class.__doc__ or ""
     if "Based on" not in doc:

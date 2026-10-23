@@ -27,6 +27,7 @@ from PIL.PngImagePlugin import PngInfo
 from typing import Any, Dict, List, Optional, Tuple
 
 from utils.model_discovery import resolve_model_path_for_metadata
+from utils.version import get_version, get_version_info
 from utils.secure_hash import (
     build_manifest,
     hash_mapping,
@@ -137,6 +138,11 @@ class SaveImageWithCheckpoint:
                     "placeholder": "Ex: C:/AI/privado/manifest.json  (vazio = nao gravar)",
                     "tooltip": "Arquivo privado que guarda o mapa hash -> valor real. "
                                "Sem ele voce nao consegue reverter o sidecar ofuscado"
+                }),
+                "stamp_version": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Gravar a versao do node (e o commit) no PNG e no sidecar, "
+                               "para rastrear qual build gerou cada arquivo"
                 }),
                 # === Nomes usados no modo seguro / placeholders ===
                 "ph_checkpoint": ("STRING", {
@@ -351,6 +357,7 @@ class SaveImageWithCheckpoint:
         custom_path: str = "",
         secure_mode: bool = False,
         manifest_path: str = "",
+        stamp_version: bool = True,
         ph_checkpoint: str = "checkpoint",
         ph_batch: str = "batch",
         ph_seed: str = "seed",
@@ -385,6 +392,20 @@ class SaveImageWithCheckpoint:
         if resolved_model:
             gen_info.setdefault("model", resolved_model)
 
+        # Version of the node that produced the file (semantic + git commit)
+        node_version = get_version()
+        node_version_info = json.dumps(
+            {
+                "version": node_version,
+                "base_version": get_version_info()["base_version"],
+                "commit": get_version_info()["commit"],
+                "dirty": get_version_info()["dirty"],
+            },
+            ensure_ascii=False,
+        )
+        if stamp_version:
+            gen_info["node_version"] = node_version
+
         for (batch_number, image) in enumerate(images):
             i = 255. * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
@@ -416,6 +437,13 @@ class SaveImageWithCheckpoint:
 
             if checkpoint_info:
                 metadata.add_text("checkpoint_info", checkpoint_info)
+
+            # ── Node version stamp ──────────────────────────────────────────
+            # Records which build of the node produced the image, so a
+            # validator can trace every file back to the exact code.
+            if stamp_version:
+                metadata.add_text("node_version", node_version)
+                metadata.add_text("node_version_info", node_version_info)
 
             # ── Build the file name ──────────────────────────────────────────
             placeholders = self._build_placeholders(checkpoint_name, gen_info, counter)

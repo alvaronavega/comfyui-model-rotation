@@ -19,8 +19,17 @@ import os
 import sys
 import traceback
 
-# Version info
-__version__ = "2.0.0"
+# Add this directory to Python path for imports
+# (must happen before the utils import below)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+from utils.version import get_version, get_version_info, format_version_line
+
+# Version info — derived from the git history (see utils/version.py)
+__version__ = get_version()
+__version_info__ = get_version_info()
 __author__ = "Alvaro Navega"
 __author_email__ = "alvaroflaviano@hotmail.com"
 __license__ = "MIT"
@@ -29,11 +38,6 @@ __license__ = "MIT"
 __original_project__ = "comfyui-change-checkpoint-randomly"
 __original_author__ = "trunksn1"
 __original_url__ = "https://github.com/trunksn1/comfyui-change-checkpoint-randomly"
-
-# Add this directory to Python path for imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
 
 # Initialize empty mappings in case of import failure
 NODE_CLASS_MAPPINGS = {}
@@ -114,7 +118,7 @@ try:
     print(f"  ⭐ Save Image (Metadata & Export) - Save PNG + .txt/.json sidecar with the generation data")
     print(f"  - Checkpoint to Filename - Add checkpoint to filename")
     print(f"  - Diffusion models: use with separate CLIPLoader + VAELoader (no embedded CLIP)")
-    print(f"  Version: {__version__}")
+    print(f"  {format_version_line()}")
     print()
     print(f"  \033[96mAuthor:\033[0m {__author__} <{__author_email__}>")
     print(f"  \033[96mBased on:\033[0m {__original_project__} by {__original_author__}")
