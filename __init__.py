@@ -1,11 +1,14 @@
-"""
-ComfyUI Checkpoint Rotation Node
+"""ComfyUI Checkpoint Rotation Node
 
-A custom node for ComfyUI that enables automatic checkpoint rotation during batch generation.
-Allows users to switch between different model checkpoints based on generation count.
+A custom node for ComfyUI that enables automatic rotation through checkpoints
+or diffusion models (UNETs without embedded CLIP) during batch generation.
+
+Enables the Krea2 instance to use custom model rotation with diffusion-style
+models that have no embedded CLIP — users provide CLIPLoader and VAELoader
+separately in their workflow, as in the working Krea2 configuration.
 
 Author: Claude AI Assistant
-Version: 1.0.0
+Version: 2.0.0
 """
 
 import os
@@ -13,7 +16,7 @@ import sys
 import traceback
 
 # Version info
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __author__ = "Claude AI Assistant"
 
 # Add this directory to Python path for imports
@@ -51,7 +54,7 @@ try:
     # Display names for nodes in ComfyUI interface
     NODE_DISPLAY_NAME_MAPPINGS = {
         "CheckpointRotationWithCounter": "Checkpoint Rotation (Batch)",  # ⭐ USE THIS
-        "SaveImageWithCheckpoint": "Save Image (with Checkpoint Info)",  # ⭐ USE THIS
+        "SaveImageWithCheckpoint": "Save Image (Metadata & Export)",  # ⭐ USE THIS
         "CheckpointFilename": "Checkpoint to Filename",
         "CheckpointRotationSimple": "Checkpoint Rotation (Debug)",
         "SimpleCheckpointRotation": "Simple Checkpoint Rotation",
@@ -60,11 +63,46 @@ try:
         "SimpleCounter": "Simple Counter",
     }
 
+    # ── ASCII ART BANNER ─────────────────────────────────────────────────────
+    BANNER = r"""
+╔═══════════════════════════════════════════════════════════════════╗
+║ ██████╗ ██████╗  ██████╗ ██████╗  ██████╗ ██████╗  ██████╗ ███████╗ ║
+║ ██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝ ║
+║ ██████╔╝██████╔╝██████╔╝██████╔╝██████╔╝██████╔╝██████╔╝█████╗   ║
+║ ██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝ ██╔══╝   ║
+║ ██████╔╝██║  ██║██║  ██║██║  ██║██║  ██║██║  ██║██║  ███╗███████╗ ║
+║ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚══════╝ ║
+║   ComfyUI Model Rotation Node v2.0.0                            ║
+╚═══════════════════════════════════════════════════════════════════╝
+    """
+
+    # ── MENSAGENS DE CARREGAMENTO ───────────────────────────────────────────
+    LOAD_MESSAGES = [
+        "   Carregando módulo de descoberta de modelos...",
+        "   Inicializando varredura cross-root via folder_paths...",
+        "   Detectando modelos em todas as pastas registradas (local + Shared)...",
+        "   Configurando dropdown model_folder: checkpoints | diffusion_models | unet",
+        "   Habilitando suporte a diffusion models (sem CLIP embutido)...",
+        "   Configurando salvamento de metadado cross-categorical...",
+        "   Carregando nós de suporte: Batch Index Counter, Simple Counter...",
+        "   Pronto! Use o nó Checkpoint Rotation (Batch) para iniciar a rotação.",
+    ]
+
+    # Print banner
+    print(BANNER)
+
+    # Print loading messages
+    print()
+    for msg in LOAD_MESSAGES:
+        print(msg)
+
     # Print success message
+    print()
     print("\033[92m[ComfyUI] Checkpoint Rotation Node loaded successfully!\033[0m")
     print(f"  ⭐ Checkpoint Rotation (Batch) - Main node")
     print(f"  ⭐ Save Image (with Checkpoint Info) - Use this to get correct metadata!")
     print(f"  - Checkpoint to Filename - Add checkpoint to filename")
+    print(f"  - Diffusion models: use with separate CLIPLoader + VAELoader (no embedded CLIP)")
     print(f"  Version: {__version__}")
 
 except Exception as e:

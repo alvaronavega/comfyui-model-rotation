@@ -1,6 +1,6 @@
 {
-  "last_node_id": 8,
-  "last_link_id": 12,
+  "last_node_id": 9,
+  "last_link_id": 11,
   "nodes": [
     {
       "id": 1,
@@ -75,7 +75,7 @@
         {
           "name": "checkpoint_name",
           "type": "STRING",
-          "links": null,
+          "links": [11, 12],
           "shape": 3
         },
         {
@@ -94,6 +94,8 @@
         0,
         "sequential",
         0,
+        "",
+        "checkpoints",
         ""
       ],
       "title": "Checkpoint Rotation Loader"
@@ -240,7 +242,7 @@
         "normal",
         1.0
       ],
-      "title": "KSampler (batch_size=1 for rotation)"
+      "title": "KSampler (batch_size=1 para rotacao)"
     },
     {
       "id": 7,
@@ -273,14 +275,13 @@
       ],
       "properties": {
         "Node name for S&R": "VAEDecode"
-      },
-      "title": "VAE Decode"
+      }
     },
     {
       "id": 8,
-      "type": "SaveImage",
+      "type": "SaveImageWithCheckpoint",
       "pos": [1400, 550],
-      "size": [320, 270],
+      "size": [400, 500],
       "flags": {},
       "order": 7,
       "mode": 0,
@@ -289,15 +290,68 @@
           "name": "images",
           "type": "IMAGE",
           "link": 10
+        },
+        {
+          "name": "checkpoint_name",
+          "type": "STRING",
+          "link": 11
         }
       ],
       "properties": {
-        "Node name for S&R": "SaveImage"
+        "Node name for S&R": "Save Image (Metadata & Export)"
       },
       "widgets_values": [
-        "checkpoint_rotation"
+        "",
+        "checkpoint_rotation",
+        "",
+        true,
+        true,
+        true,
+        false,
+        "",
+        "",
+        false,
+        "",
+        "checkpoint",
+        "batch",
+        "seed"
       ],
-      "title": "Save Image"
+      "title": "Save Image (Metadata & Export)"
+    },
+    {
+      "id": 9,
+      "type": "CheckpointFilename",
+      "pos": [100, 600],
+      "size": [320, 180],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "checkpoint_name",
+          "type": "STRING",
+          "link": 12
+        },
+        {
+          "name": "prefix",
+          "type": "STRING",
+          "default": "ComfyUI",
+          "multiline": false
+        },
+        {
+          "name": "include_path",
+          "type": "BOOLEAN",
+          "default": false
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Checkpoint to Filename"
+      },
+      "widgets_values": [
+        "ComfyUI",
+        false
+      ],
+      "title": "Checkpoint to Filename"
     }
   ],
   "links": [
@@ -310,7 +364,9 @@
     [7, 4, 0, 6, 2, "CONDITIONING"],
     [8, 5, 0, 6, 3, "LATENT"],
     [9, 6, 0, 7, 0, "LATENT"],
-    [10, 7, 0, 8, 0, "IMAGE"]
+    [10, 7, 0, 8, 0, "IMAGE"],
+    [11, 2, 3, 8, 1, "STRING"],
+    [12, 2, 3, 9, 0, "STRING"]
   ],
   "groups": [],
   "config": {},
@@ -320,6 +376,7 @@
       "offset": [-50, -50]
     }
   },
-  "version": 0.4,
-  "workflow_description": "Example workflow for Checkpoint Rotation Node. Set the change_interval to 4 to change checkpoints every 4 images. Loop this workflow 20 times to generate 20 images with 5 different checkpoints."
+  "version": 2.0,
+  "workflow_description": "Workflow de exemplo do comfyui-model-rotation v2.0.0.\n\nNODES INCLUIDOS:\n- Batch Index Counter: incrementa o indice a cada imagem\n- Checkpoint Rotation Loader: dropdown model_folder (checkpoints | diffusion_models | unet)\n- Save Image (Metadata & Export): salva PNG + .txt sidecar com todos os dados da geracao\n- Checkpoint to Filename: gera prefixo de arquivo com o nome do modelo\n\nCONFIGURACOES DO NODE DE SAVE:\n- enable_metadata: grava info do modelo no PNG\n- embed_workflow: grava o grafo do workflow no PNG (desative para nao revelar nada)\n- enable_txt_file: grava arquivo .txt com os dados extraidos (seed, steps, cfg, sampler...)\n- enable_json_file: grava arquivo .json com os dados extraidos\n- custom_filename: nome custom com placeholders ${checkpoint} ${batch} ${seed} ${steps} ${cfg} ${sampler}\n- custom_path: pasta alternativa de salvamento\n- secure_mode: nomes genericos + conteudo do sidecar com hash\n\nMODO DIFFUSION MODELS:\nMude model_folder para 'diffusion_models' ou 'unet'. Nesse caso clip e vae sao None:\nconecte nos CLIPLoader e VAELoader separados (como no workflow Krea2).",
+  "notes": "Para comparar apenas 2 modelos: use o campo checkpoint_filter com um substring comum a eles, ou a selecao explicita."
 }
