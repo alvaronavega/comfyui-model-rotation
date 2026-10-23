@@ -25,7 +25,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from utils.version import get_version, get_version_info, format_version_line
+from .utils.version import get_version, get_version_info, format_version_line
 
 # Version info — derived from the git history (see utils/version.py)
 __version__ = get_version()
