@@ -152,7 +152,7 @@ def _branch_version(base: str, branch: str, commits: int) -> Optional[str]:
 
     if branch.startswith("feature/"):
         name = branch[len("feature/"):].strip() or "feature"
-        name = re.sub(r"[^0-9A-Za-z.]+", ".", name).strip(".")
+        name = re.sub(r"[^0-9A-Za-z.-]+", ".", name).strip(".-")
         return f"{_next_minor(base)}-feature.{name}.{commits}"
 
     if branch.startswith("release/"):
@@ -161,7 +161,7 @@ def _branch_version(base: str, branch: str, commits: int) -> Optional[str]:
 
     if branch.startswith("hotfix/"):
         name = branch[len("hotfix/"):].strip() or "hotfix"
-        name = re.sub(r"[^0-9A-Za-z.]+", ".", name).strip(".")
+        name = re.sub(r"[^0-9A-Za-z.-]+", ".", name).strip(".-")
         return f"{_next_patch(base)}-hotfix.{name}.{commits}"
 
     return None

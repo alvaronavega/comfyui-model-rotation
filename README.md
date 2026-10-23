@@ -1,8 +1,16 @@
-# ComfyUI Checkpoint Rotation Node
+# ComfyUI Model Rotation
+
+[![CI](https://github.com/alvaronavega/comfyui-model-rotation/actions/workflows/ci.yml/badge.svg)](https://github.com/alvaronavega/comfyui-model-rotation/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A custom node for ComfyUI that enables automatic rotation through **checkpoints** or **diffusion models** (UNETs without embedded CLIP) during batch generation.
 
 **Current version: 2.0.0** — supports checkpoints AND diffusion models across all registered ComfyUI folder roots.
+
+> **Fork notice** — this is *comfyui-model-rotation*, a fork of
+> [comfyui-change-checkpoint-randomly](https://github.com/trunksn1/comfyui-change-checkpoint-randomly)
+> by [trunksn1](https://github.com/trunksn1). See
+> [Credits & Acknowledgements](#credits--acknowledgements).
 
 ## Features
 
