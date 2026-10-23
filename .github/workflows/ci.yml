@@ -8,6 +8,8 @@ on:
     branches:
       - main
       - develop
+  # lets you re-run the pipeline by hand from the Actions tab
+  workflow_dispatch:
 
 # Cancel a previous run of the same branch when a new commit lands.
 concurrency:
@@ -62,38 +64,4 @@ jobs:
           python-version: "3.12"
 
       - name: The version must resolve from the git history
-        run: |
-          python - <<'PY'
-          import sys
-          sys.path.insert(0, ".")
-          from utils.version import get_version, get_version_info
-          info = get_version_info()
-          print("version :", info["version"])
-          print("base    :", info["base_version"])
-          print("commit  :", info["commit"])
-          print("branch  :", info["branch"])
-          print("source  :", info["source"])
-          assert info["source"] == "git", "the version did not come from git"
-          assert info["commit"], "no commit hash resolved"
-          assert info["version"], "no version resolved"
-          PY
-
-      - name: The nodes must import and expose the version
-        run: |
-          python - <<'PY'
-          import sys, types
-          sys.path.insert(0, ".")
-          fp = types.ModuleType("folder_paths")
-          fp.get_full_path = lambda c, n: None
-          fp.get_folder_paths = lambda c: []
-          sys.modules["folder_paths"] = fp
-
-          from nodes.checkpoint_rotation import CheckpointRotationNode
-          from nodes.save_with_checkpoint import SaveImageWithCheckpoint
-          from utils.version import get_version
-
-          for node in (CheckpointRotationNode, SaveImageWithCheckpoint):
-              assert node.VERSION == get_version(), node.__name__
-              assert node.AUTHOR == "Alvaro Navega", node.__name__
-          print("nodes OK, version", get_version())
-          PY
+        run: python tools/check_version.py
